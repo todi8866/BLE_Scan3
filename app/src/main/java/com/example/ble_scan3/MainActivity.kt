@@ -1,9 +1,13 @@
 package com.example.ble_scan3
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
@@ -20,10 +24,15 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
+//import androidx.core.content.ContextCompat
+
+
+
 class MainActivity : AppCompatActivity() {
 
     private var isScanning = false
     private var lastcurrenttime:Long = 0
+    private var scancount:Long = 0
 
 
     override fun onResume() {
@@ -84,6 +93,7 @@ class MainActivity : AppCompatActivity() {
            // return
         }
         isScanning = true
+        scancount = 0
         bleScanner.startScan(null, scanSettings, scanCallback)
     }
 
@@ -109,33 +119,63 @@ class MainActivity : AppCompatActivity() {
     private val TAG = "ScanCallback"
     private val RUNTIME_PERMISSION_REQUEST_CODE = 2
 
-    private val scanCallback = object : ScanCallback() {
-        override fun onScanResult(callbackType: Int, result: ScanResult) {
-            // val rssi_value = result.rssi
-            if (isScanning)
-            if ((result.device.name == "MoDat") || (result.device.name == "MD3")) {
-                val scantext = findViewById<TextView>(R.id.textView_scan)
 
-                with(result.device) {
-                    Log.i(
-                        TAG,
-                        "Found BLE device! Name: ${name ?: "Unnamed"}, address: $address, rssi: ${result.rssi}"
+    private val gattCallback = object : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            val deviceAddress = gatt.device.address
 
-                    )
-                    if ((name == "MD3") && (lastcurrenttime < (System.currentTimeMillis() - 500))) {
-                        var md3_BTStrength = "not found"
-                        if (result.rssi <  -70) md3_BTStrength = "weak"
-                        if (result.rssi <= -65) md3_BTStrength = "good"
-                        if (result.rssi >  -65) md3_BTStrength = "strong"
-
-                        scantext.text = "${name}  ${result.rssi}  " + md3_BTStrength
-                        lastcurrenttime = System.currentTimeMillis()
-                    }
-
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    Log.w("BluetoothGattCallback", "Successfully connected to $deviceAddress")
+                    // TODO: Store a reference to BluetoothGatt
+                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    Log.w("BluetoothGattCallback", "Successfully disconnected from $deviceAddress")
+                    gatt.close()
                 }
+            } else {
+                Log.w("BluetoothGattCallback", "Error $status encountered for $deviceAddress! Disconnecting...")
+                gatt.close()
             }
         }
     }
+
+
+
+    private val scanCallback = object : ScanCallback() {
+        @SuppressLint("MissingPermission")
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            scancount++
+            if ((result.device.name == "MD3") &&
+                (lastcurrenttime < (System.currentTimeMillis() - 500)) || !isScanning) {
+
+                    with(result.device) {
+                        if (isScanning) {
+                            val scantext = findViewById<TextView>(R.id.textView_scan)
+                            Log.i(
+                                TAG,
+                                "Found BLE device! Name: ${name ?: "Unnamed"}, address: $address, rssi: ${result.rssi}"
+                            )
+
+                            var md3_BTStrength = "not found"
+                            if (result.rssi < -70) md3_BTStrength = "weak"
+                            if (result.rssi <= -65) md3_BTStrength = "good"
+                            if (result.rssi > -65) md3_BTStrength = "strong"
+
+                            scantext.text =
+                                "${name}  ${result.rssi}  " + md3_BTStrength + " " + scancount.toString()
+                            lastcurrenttime = System.currentTimeMillis()
+                        }
+                        if ((!isScanning) && (name == "MD3"))
+                            with(result.device) {
+                                Log.w("ScanResultAdapter", "Connecting to $address")
+                                connectGatt(this@MainActivity, false, gattCallback)
+
+                            }
+                    }
+            }
+        }
+    }
+
 //***********************************************************************************
 
 //is_checked
