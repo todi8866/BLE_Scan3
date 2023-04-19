@@ -23,6 +23,8 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
 
     private var isScanning = false
+    private var lastcurrenttime:Long = 0
+
 
     override fun onResume() {
         super.onResume()
@@ -81,17 +83,14 @@ class MainActivity : AppCompatActivity() {
             )
            // return
         }
-
-
-
-
-
         isScanning = true
         bleScanner.startScan(null, scanSettings, scanCallback)
     }
 
     private fun MD3ScanStop() {
         isScanning = false
+        val scantext = findViewById<TextView>(R.id.textView_scan)
+        scantext.text = ""
         bleScanner.stopScan(scanCallback)
     }
 
@@ -113,17 +112,27 @@ class MainActivity : AppCompatActivity() {
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             // val rssi_value = result.rssi
+            if (isScanning)
             if ((result.device.name == "MoDat") || (result.device.name == "MD3")) {
                 val scantext = findViewById<TextView>(R.id.textView_scan)
 
                 with(result.device) {
-                    Log.i(TAG,
+                    Log.i(
+                        TAG,
                         "Found BLE device! Name: ${name ?: "Unnamed"}, address: $address, rssi: ${result.rssi}"
 
                     )
-                    scantext.text = "${name}"
-                }
+                    if ((name == "MD3") && (lastcurrenttime < (System.currentTimeMillis() - 500))) {
+                        var md3_BTStrength = "not found"
+                        if (result.rssi <  -70) md3_BTStrength = "weak"
+                        if (result.rssi <= -65) md3_BTStrength = "good"
+                        if (result.rssi >  -65) md3_BTStrength = "strong"
 
+                        scantext.text = "${name}  ${result.rssi}  " + md3_BTStrength
+                        lastcurrenttime = System.currentTimeMillis()
+                    }
+
+                }
             }
         }
     }
@@ -237,7 +246,7 @@ class MainActivity : AppCompatActivity() {
                         requestRelevantRuntimePermissions()
                     }
                     allGranted && hasRequiredRuntimePermissions() -> {
-                        MD3ScanStart()
+                      //  MD3ScanStart()
                     }
                     else -> {
                         // Unexpected scenario encountered when handling permissions
