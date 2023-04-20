@@ -6,6 +6,7 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
@@ -36,7 +37,7 @@ class MainActivity : AppCompatActivity() {
 
     private var lastcurrenttime:Long = 0
     private var scancount:Long = 0
-
+    private lateinit var usergatt: BluetoothGatt
 
     override fun onResume() {
         super.onResume()
@@ -123,9 +124,53 @@ class MainActivity : AppCompatActivity() {
     private val RUNTIME_PERMISSION_REQUEST_CODE = 2
 
 
+    fun writeCharacteristic(characteristic: BluetoothGattCharacteristic, payload: ByteArray) {
+
+    //   val writeType = when {
+    //        characteristic.isWritable() -> BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+    //        characteristic.isWritableWithoutResponse() -> {
+    //            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+    //        }
+    //        else -> error("Characteristic ${characteristic.uuid} cannot be written to")
+    //    }
+
+      //  BluetoothGatt?.let { usergatt ->
+            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            characteristic.value = payload
+            usergatt.writeCharacteristic(characteristic)
+      //  } ?: error("Not connected to a BLE device!")
+    }
+
+
+    fun onCharacteristicWrite(
+       // gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+        status: Int
+    ) {
+        with(characteristic) {
+            when (status) {
+                BluetoothGatt.GATT_SUCCESS -> {
+                    Log.i("BluetoothGattCallback", "Wrote to characteristic $uuid | value: ${value}")
+                }
+                BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> {
+                    Log.e("BluetoothGattCallback", "Write exceeded connection ATT MTU!")
+                }
+                BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> {
+                    Log.e("BluetoothGattCallback", "Write not permitted for $uuid!")
+                }
+                else -> {
+                    Log.e("BluetoothGattCallback", "Characteristic write failed for $uuid, error: $status")
+                }
+            }
+        }
+    }
+
+
+
 
 
     private val gattCallback = object : BluetoothGattCallback() {
+
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             val deviceAddress = gatt.device.address
 
@@ -133,16 +178,31 @@ class MainActivity : AppCompatActivity() {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
                     Log.w("BluetoothGattCallback", "Successfully connected to $deviceAddress")
                     // TODO: Store a reference to BluetoothGatt
+                    usergatt = gatt
+                    gatt.discoverServices()
+
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                     Log.w("BluetoothGattCallback", "Successfully disconnected from $deviceAddress")
                     gatt.close()
                 }
             } else {
-                Log.w("BluetoothGattCallback", "Error $status encountered for $deviceAddress! Disconnecting...")
+                Log.w(
+                    "BluetoothGattCallback",
+                    "Error $status encountered for $deviceAddress! Disconnecting..."
+                )
                 gatt.close()
             }
         }
+
+
+        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            with(gatt) {
+                Log.w("BluetoothGattCallback", "Discovered ${services.size} services for ${device.address}, ${device.uuids}:")
+
+            }
+        }
     }
+
 
     private val scanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
