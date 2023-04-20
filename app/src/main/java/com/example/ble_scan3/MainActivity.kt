@@ -18,6 +18,7 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -31,6 +32,8 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
 
     private var isScanning = false
+    private var isConnecting = false
+
     private var lastcurrenttime:Long = 0
     private var scancount:Long = 0
 
@@ -120,6 +123,8 @@ class MainActivity : AppCompatActivity() {
     private val RUNTIME_PERMISSION_REQUEST_CODE = 2
 
 
+
+
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             val deviceAddress = gatt.device.address
@@ -139,8 +144,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-
     private val scanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -155,6 +158,8 @@ class MainActivity : AppCompatActivity() {
                                 TAG,
                                 "Found BLE device! Name: ${name ?: "Unnamed"}, address: $address, rssi: ${result.rssi}"
                             )
+                            val buttonConnect = findViewById<Button>(R.id.button_connect)
+                            buttonConnect.visibility = View.VISIBLE
 
                             var md3_BTStrength = "not found"
                             if (result.rssi < -70) md3_BTStrength = "weak"
@@ -165,9 +170,11 @@ class MainActivity : AppCompatActivity() {
                                 "${name}  ${result.rssi}  " + md3_BTStrength + " " + scancount.toString()
                             lastcurrenttime = System.currentTimeMillis()
                         }
-                        if ((!isScanning) && (name == "MD3"))
+                        if (isScanning && (name == "MD3") && isConnecting)
                             with(result.device) {
                                 Log.w("ScanResultAdapter", "Connecting to $address")
+                                isScanning = false
+                                MD3ScanStop()
                                 connectGatt(this@MainActivity, false, gattCallback)
 
                             }
@@ -351,6 +358,10 @@ class MainActivity : AppCompatActivity() {
         val buttonStart = findViewById<Button>(R.id.button_scan)
         buttonStart.text = "Scan"
 
+        val buttonConnect = findViewById<Button>(R.id.button_connect)
+        buttonConnect.text = "Connect"
+        buttonConnect.visibility = View.INVISIBLE
+
         buttonStart.setOnClickListener {
             if (!isScanning) {
                 MD3ScanStart()
@@ -362,8 +373,12 @@ class MainActivity : AppCompatActivity() {
                 MD3ScanStop()
                 buttonStart.text = "Start"
                 scantext.text = ""
+                buttonConnect.visibility = View.INVISIBLE
             }
+        }
 
+        buttonConnect.setOnClickListener {
+            isConnecting = true
         }
     }
 }

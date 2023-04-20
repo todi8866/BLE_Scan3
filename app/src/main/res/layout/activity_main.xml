@@ -14,7 +14,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.424" />
+        app:layout_constraintVertical_bias="0.457" />
 
     <Button
         android:id="@+id/button_scan"
@@ -30,11 +30,20 @@
         android:id="@+id/textView_scan"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="28dp"
+        android:layout_marginTop="20dp"
         android:text="Scanning..."
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.505"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button_scan" />
+
+    <Button
+        android:id="@+id/button_connect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="88dp"
+        android:text="Connect"
+        app:layout_constraintEnd_toEndOf="@+id/button_scan"
+        app:layout_constraintStart_toStartOf="@+id/button_scan"
         app:layout_constraintTop_toBottomOf="@+id/button_scan" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
