@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
@@ -25,6 +26,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.util.UUID
 
 //import androidx.core.content.ContextCompat
 
@@ -38,6 +40,11 @@ class MainActivity : AppCompatActivity() {
     private var lastcurrenttime:Long = 0
     private var scancount:Long = 0
     private lateinit var usergatt: BluetoothGatt
+
+    private lateinit var proteusGatt: BluetoothGatt
+    private lateinit var proteusGattService: BluetoothGattService
+    private lateinit var proteusRXCharacteristic: BluetoothGattCharacteristic
+    private lateinit var proteusTXCharacteristic: BluetoothGattCharacteristic
 
     override fun onResume() {
         super.onResume()
@@ -124,22 +131,7 @@ class MainActivity : AppCompatActivity() {
     private val RUNTIME_PERMISSION_REQUEST_CODE = 2
 
 
-    fun writeCharacteristic(characteristic: BluetoothGattCharacteristic, payload: ByteArray) {
 
-    //   val writeType = when {
-    //        characteristic.isWritable() -> BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-    //        characteristic.isWritableWithoutResponse() -> {
-    //            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-    //        }
-    //        else -> error("Characteristic ${characteristic.uuid} cannot be written to")
-    //    }
-
-      //  BluetoothGatt?.let { usergatt ->
-            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-            characteristic.value = payload
-            usergatt.writeCharacteristic(characteristic)
-      //  } ?: error("Not connected to a BLE device!")
-    }
 
 
     fun onCharacteristicWrite(
@@ -199,6 +191,37 @@ class MainActivity : AppCompatActivity() {
             with(gatt) {
                 Log.w("BluetoothGattCallback", "Discovered ${services.size} services for ${device.address}, ${device.uuids}:")
 
+                services.forEach { service ->
+                    val characteristicsTable = service.characteristics.joinToString(
+                        separator = "\n|--",
+                        prefix = "|--"
+                    ) { it.uuid.toString() }
+                    Log.i(
+                        "printGattTable",
+                        "\nService ${service.uuid}\nCharacteristics:\n$characteristicsTable"
+                    )
+                    // Service
+                    // 00001800-0000-1000-8000-00805f9b34fb
+                    // Characteristics
+                    //  |--00002a00-0000-1000-8000-00805f9b34fb
+                    //  |--00002a01-0000-1000-8000-00805f9b34fb
+                    //  |--00002a04-0000-1000-8000-00805f9b34fb
+                    //  |--00002aa6-0000-1000-8000-00805f9b34fb
+                    // 00001801-0000-1000-8000-00805f9b34fb
+                    // 6e400001-c352-11e5-953d-0002a5d5c51b             Proteus 3 primary service
+                    //  |--6e400002-c352-11e5-953d-0002a5d5c51b      RX
+                    //  |--6e400003-c352-11e5-953d-0002a5d5c51b      TX
+                }
+                    proteusGatt = gatt
+                    proteusGattService = gatt.getService(UUID.fromString("6e400001-c352-11e5-953d-0002a5d5c51b"))
+                    proteusRXCharacteristic = proteusGattService.getCharacteristic(UUID.fromString("6e400002-c352-11e5-953d-0002a5d5c51b"))
+                    proteusTXCharacteristic = proteusGattService.getCharacteristic(UUID.fromString("6e400003-c352-11e5-953d-0002a5d5c51b"))
+
+              //      proteusRXCharacteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                    proteusRXCharacteristic.value = byteArrayOf(1,31,32,33,34)
+                    proteusGatt.writeCharacteristic(proteusRXCharacteristic)
+
+
             }
         }
     }
@@ -208,7 +231,7 @@ class MainActivity : AppCompatActivity() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             scancount++
-            if ((result.device.name == "MD3") &&
+            if (((result.device.name == "MD3") || (result.device.name == "MoDat")) &&
                 (lastcurrenttime < (System.currentTimeMillis() - 500)) || !isScanning) {
 
                     with(result.device) {
@@ -230,7 +253,7 @@ class MainActivity : AppCompatActivity() {
                                 "${name}  ${result.rssi}  " + md3_BTStrength + " " + scancount.toString()
                             lastcurrenttime = System.currentTimeMillis()
                         }
-                        if (isScanning && (name == "MD3") && isConnecting)
+                        if (isScanning && ((name == "MD3") || (name == "MoDat")) && isConnecting)
                             with(result.device) {
                                 Log.w("ScanResultAdapter", "Connecting to $address")
                                 isScanning = false
@@ -439,6 +462,8 @@ class MainActivity : AppCompatActivity() {
 
         buttonConnect.setOnClickListener {
             isConnecting = true
+            buttonConnect.text = "Disconnect"
+
         }
     }
 }
