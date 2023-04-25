@@ -11,22 +11,25 @@ import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.DialogInterface
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.ParcelUuid
 import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import java.util.UUID
+
 
 //import androidx.core.content.ContextCompat
 
@@ -54,7 +57,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private val scanSettings = ScanSettings.Builder()
+    private var scanSettings = ScanSettings.Builder()
         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
         .build()
 
@@ -105,7 +108,22 @@ class MainActivity : AppCompatActivity() {
         }
         isScanning = true
         scancount = 0
-        bleScanner.startScan(null, scanSettings, scanCallback)
+
+        val SERVICE_DATA_UUID = UUID.fromString("6e400001-c352-11e5-953d-0002a5d5c51b")
+        val filters: ArrayList<ScanFilter> = ArrayList<ScanFilter>()
+        val uuid = SERVICE_DATA_UUID
+      //  val filter = ScanFilter.Builder().setServiceUuid(SERVICE_DATA_UUID).build()
+      //  filters.add(filter)
+
+        val parcelUuid = ParcelUuid(UUID.fromString("6e400001-c352-11e5-953d-0002a5d5c51b"))
+        val filter = ScanFilter.Builder().setServiceUuid(parcelUuid).build()
+        filters.add(filter)
+    //    scanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build()
+
+
+        val settings: ScanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+        bleScanner.startScan(filters, settings, scanCallback)
+       // bleScanner.startScan(null, scanSettings, scanCallback)
     }
 
     private fun MD3ScanStop() {
@@ -218,8 +236,9 @@ class MainActivity : AppCompatActivity() {
                     proteusTXCharacteristic = proteusGattService.getCharacteristic(UUID.fromString("6e400003-c352-11e5-953d-0002a5d5c51b"))
 
               //      proteusRXCharacteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                    proteusRXCharacteristic.value = byteArrayOf(1,31,32,33,34)
-                    proteusGatt.writeCharacteristic(proteusRXCharacteristic)
+                proteusRXCharacteristic.value = byteArrayOf(1,49,50,51,52,32,65,66,67,68,69,70,71,72,73,74,75)
+                proteusGatt.writeCharacteristic(proteusRXCharacteristic)
+
 
 
             }
@@ -231,8 +250,11 @@ class MainActivity : AppCompatActivity() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             scancount++
-            if (((result.device.name == "MD3") || (result.device.name == "MoDat")) &&
-                (lastcurrenttime < (System.currentTimeMillis() - 500)) || !isScanning) {
+
+           //   if (((result.device.name == "MD3") || (result.device.name == "MoDat")) &&
+        //    if ((result.scanRecord.serviceUuids[0]="6e400001-c352-11e5-953d-0002a5d5c51b") &&
+
+             if ((lastcurrenttime < (System.currentTimeMillis() - 500)) || !isScanning) {
 
                     with(result.device) {
                         if (isScanning) {
@@ -245,15 +267,15 @@ class MainActivity : AppCompatActivity() {
                             buttonConnect.visibility = View.VISIBLE
 
                             var md3_BTStrength = "not found"
-                            if (result.rssi < -70) md3_BTStrength = "weak"
+                            if (result.rssi <  -70) md3_BTStrength = "weak"
                             if (result.rssi <= -65) md3_BTStrength = "good"
-                            if (result.rssi > -65) md3_BTStrength = "strong"
+                            if (result.rssi >  -65) md3_BTStrength = "strong"
 
                             scantext.text =
                                 "${name}  ${result.rssi}  " + md3_BTStrength + " " + scancount.toString()
                             lastcurrenttime = System.currentTimeMillis()
                         }
-                        if (isScanning && ((name == "MD3") || (name == "MoDat")) && isConnecting)
+                        if (isScanning && isConnecting)
                             with(result.device) {
                                 Log.w("ScanResultAdapter", "Connecting to $address")
                                 isScanning = false
