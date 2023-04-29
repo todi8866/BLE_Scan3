@@ -245,9 +245,11 @@ class MainActivity : AppCompatActivity() {
                     proteusTXCharacteristic = proteusGattService.getCharacteristic(UUID.fromString("6e400002-c352-11e5-953d-0002a5d5c51b"))
                     proteusRXCharacteristic = proteusGattService.getCharacteristic(UUID.fromString("6e400003-c352-11e5-953d-0002a5d5c51b"))
 
-                    proteusGatt.setCharacteristicNotification(proteusRXCharacteristic, true);
-                    val descriptor: BluetoothGattDescriptor = proteusRXCharacteristic.getDescriptor(UUID.fromString("6e400003-c352-11e5-953d-0002a5d5c51b"))
-                    descriptor.value = ENABLE_NOTIFICATION_VALUE
+                    proteusGatt.setCharacteristicNotification(proteusRXCharacteristic, true)
+
+                    val descriptor = proteusRXCharacteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+                    descriptor.setValue(ENABLE_NOTIFICATION_VALUE)
+                    // finally connect with blue led on board
                     proteusGatt.writeDescriptor(descriptor)
 
                 //      proteusRXCharacteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
