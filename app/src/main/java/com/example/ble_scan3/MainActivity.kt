@@ -7,6 +7,8 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
@@ -204,6 +206,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        override fun onCharacteristicWrite(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?, status: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.d("onCharacteristicWrite", "Failed write, retrying: $status")
+                gatt!!.writeCharacteristic(characteristic)
+            }
+            super.onCharacteristicWrite(gatt, characteristic, status);
+        }
+
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             with(gatt) {
@@ -232,12 +242,17 @@ class MainActivity : AppCompatActivity() {
                 }
                     proteusGatt = gatt
                     proteusGattService = gatt.getService(UUID.fromString("6e400001-c352-11e5-953d-0002a5d5c51b"))
-                    proteusRXCharacteristic = proteusGattService.getCharacteristic(UUID.fromString("6e400002-c352-11e5-953d-0002a5d5c51b"))
-                    proteusTXCharacteristic = proteusGattService.getCharacteristic(UUID.fromString("6e400003-c352-11e5-953d-0002a5d5c51b"))
+                    proteusTXCharacteristic = proteusGattService.getCharacteristic(UUID.fromString("6e400002-c352-11e5-953d-0002a5d5c51b"))
+                    proteusRXCharacteristic = proteusGattService.getCharacteristic(UUID.fromString("6e400003-c352-11e5-953d-0002a5d5c51b"))
 
-              //      proteusRXCharacteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                proteusRXCharacteristic.value = byteArrayOf(1,49,50,51,52,32,65,66,67,68,69,70,71,72,73,74,75)
-                proteusGatt.writeCharacteristic(proteusRXCharacteristic)
+                    proteusGatt.setCharacteristicNotification(proteusRXCharacteristic, true);
+                    val descriptor: BluetoothGattDescriptor = proteusRXCharacteristic.getDescriptor(UUID.fromString("6e400003-c352-11e5-953d-0002a5d5c51b"))
+                    descriptor.value = ENABLE_NOTIFICATION_VALUE
+                    proteusGatt.writeDescriptor(descriptor)
+
+                //      proteusRXCharacteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                proteusTXCharacteristic.value = byteArrayOf(1,49,50,51,52,32,65,66,67)
+                proteusGatt.writeCharacteristic(proteusTXCharacteristic)
 
 
 
