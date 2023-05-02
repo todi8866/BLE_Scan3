@@ -30,6 +30,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.util.Calendar
 import java.util.Timer
 import java.util.TimerTask
 import java.util.UUID
@@ -46,6 +47,7 @@ class MainActivity : AppCompatActivity() {
 
     private var lastcurrenttime:Long = 0
     private var scancount:Long = 0
+    private var bleSendCount = 0
     private lateinit var usergatt: BluetoothGatt
 
     private lateinit var proteusGatt: BluetoothGatt
@@ -260,11 +262,57 @@ class MainActivity : AppCompatActivity() {
 
                 Timer().scheduleAtFixedRate(object: TimerTask() {
                     override fun run() {
-                        proteusTXCharacteristic.value = byteArrayOf(1,49,50,51,52,32,65,66,67)
+                        val c = Calendar.getInstance()
+
+                        val millisec = (c.get(Calendar.MILLISECOND) / 10)
+                        var millisec1 = (millisec / 10).toByte()
+                        var millisec2 = (millisec - (millisec1 * 10)).toByte()
+                        millisec1 = (millisec1 + 48).toByte()
+                        millisec2 = (millisec2 + 48).toByte()
+
+                        val seconds = c.get(Calendar.SECOND)
+                        var secbyte1 = (seconds / 10).toByte()
+                        var secbyte2 = (seconds - (secbyte1 * 10)).toByte()
+                        secbyte1 = (secbyte1 + 48).toByte()
+                        secbyte2 = (secbyte2 + 48).toByte()
+
+                        val minutes = c.get(Calendar.MINUTE)
+                        var minbyte1 = (minutes / 10).toByte()
+                        var minbyte2 = (minutes - (minbyte1 * 10)).toByte()
+                        minbyte1 = (minbyte1 + 48).toByte()
+                        minbyte2 = (minbyte2 + 48).toByte()
+
+                        bleSendCount++
+                        if (bleSendCount > 999) bleSendCount = 0
+                        var sendcount1 = (bleSendCount / 100).toByte()
+                        var sendcount2 = ((bleSendCount - (sendcount1 * 100)) / 10).toByte()
+                        var sendcount3 = (bleSendCount - (sendcount1 * 100) - (sendcount2 * 10)).toByte()
+                        sendcount1 = (sendcount1 + 48).toByte()
+                        sendcount2 = (sendcount2 + 48).toByte()
+                        sendcount3 = (sendcount3 + 48).toByte()
+
+                        proteusTXCharacteristic.value = byteArrayOf(1,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,
+                            48,49,50,51,52,53,54,55,56,57,32,
+                            minbyte1,   minbyte2,   58,
+                            secbyte1,   secbyte2,   46,
+                            millisec1,  millisec2,  32,
+                            sendcount1, sendcount2, sendcount3,
+                            13,10)
                         proteusGatt.writeCharacteristic(proteusTXCharacteristic)
 
                     }
-                }, 500, 1000)
+                }, 500, 10)
 
 
 
