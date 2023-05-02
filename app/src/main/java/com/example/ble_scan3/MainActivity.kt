@@ -264,7 +264,7 @@ class MainActivity : AppCompatActivity() {
                         proteusGatt.writeCharacteristic(proteusTXCharacteristic)
 
                     }
-                }, 1000, 5000)
+                }, 500, 1000)
 
 
 
