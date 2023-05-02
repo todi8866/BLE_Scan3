@@ -30,6 +30,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.util.Timer
+import java.util.TimerTask
 import java.util.UUID
 
 
@@ -253,8 +255,16 @@ class MainActivity : AppCompatActivity() {
                     proteusGatt.writeDescriptor(descriptor)
 
                 //      proteusRXCharacteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                proteusTXCharacteristic.value = byteArrayOf(1,49,50,51,52,32,65,66,67)
-                proteusGatt.writeCharacteristic(proteusTXCharacteristic)
+                //proteusTXCharacteristic.value = byteArrayOf(1,49,50,51,52,32,65,66,67)
+                //proteusGatt.writeCharacteristic(proteusTXCharacteristic)
+
+                Timer().scheduleAtFixedRate(object: TimerTask() {
+                    override fun run() {
+                        proteusTXCharacteristic.value = byteArrayOf(1,49,50,51,52,32,65,66,67)
+                        proteusGatt.writeCharacteristic(proteusTXCharacteristic)
+
+                    }
+                }, 1000, 5000)
 
 
 
