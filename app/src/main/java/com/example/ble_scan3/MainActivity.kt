@@ -48,6 +48,8 @@ class MainActivity : AppCompatActivity() {
     private var lastcurrenttime:Long = 0
     private var scancount:Long = 0
     private var bleSendCount = 0
+    private var bleCharacteristicWrite = 0
+    private var bleWriteErrorCount = 0
     private lateinit var usergatt: BluetoothGatt
 
     private lateinit var proteusGatt: BluetoothGatt
@@ -127,7 +129,9 @@ class MainActivity : AppCompatActivity() {
     //    scanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build()
 
 
-        val settings: ScanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+       // val settings: ScanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES).build()
+       val settings = ScanSettings.Builder().setCallbackType(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+
         bleScanner.startScan(filters, settings, scanCallback)
        // bleScanner.startScan(null, scanSettings, scanCallback)
     }
@@ -214,8 +218,28 @@ class MainActivity : AppCompatActivity() {
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 Log.d("onCharacteristicWrite", "Failed write, retrying: $status")
                 gatt!!.writeCharacteristic(characteristic)
+                bleCharacteristicWrite = 0
             }
             super.onCharacteristicWrite(gatt, characteristic, status);
+            bleCharacteristicWrite = 0
+        }
+
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
+        ) {
+            with(characteristic) {
+                Log.i("BluetoothGattCallback", "Characteristic $uuid changed | value: ${value}")
+
+                if (characteristic.uuid.toString() == "6e400003-c352-11e5-953d-0002a5d5c51b") {
+                    val scantextreceived = findViewById<TextView>(R.id.textView_received)
+                    var receive = proteusRXCharacteristic.value
+                    receive = receive.copyOfRange(1, receive.size)
+                    scantextreceived.text = scantextreceived.text.toString() + "\r\n" + String(receive)
+                }
+
+            }
         }
 
 
@@ -255,6 +279,7 @@ class MainActivity : AppCompatActivity() {
                     descriptor.setValue(ENABLE_NOTIFICATION_VALUE)
                     // finally connect with blue led on board
                     proteusGatt.writeDescriptor(descriptor)
+                    bleCharacteristicWrite = 0   // we just wrote something
 
                 //      proteusRXCharacteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 //proteusTXCharacteristic.value = byteArrayOf(1,49,50,51,52,32,65,66,67)
@@ -282,8 +307,7 @@ class MainActivity : AppCompatActivity() {
                         minbyte1 = (minbyte1 + 48).toByte()
                         minbyte2 = (minbyte2 + 48).toByte()
 
-                        bleSendCount++
-                        if (bleSendCount > 999) bleSendCount = 0
+
                         var sendcount1 = (bleSendCount / 100).toByte()
                         var sendcount2 = ((bleSendCount - (sendcount1 * 100)) / 10).toByte()
                         var sendcount3 = (bleSendCount - (sendcount1 * 100) - (sendcount2 * 10)).toByte()
@@ -291,28 +315,47 @@ class MainActivity : AppCompatActivity() {
                         sendcount2 = (sendcount2 + 48).toByte()
                         sendcount3 = (sendcount3 + 48).toByte()
 
+                        var dummy:Byte = 32
+                        if (bleWriteErrorCount != 0)
+                            dummy = 0x41
+
                         proteusTXCharacteristic.value = byteArrayOf(1,
                             48,49,50,51,52,53,54,55,56,57,
                             48,49,50,51,52,53,54,55,56,57,
                             48,49,50,51,52,53,54,55,56,57,
                             48,49,50,51,52,53,54,55,56,57,
-                            48,49,50,51,52,53,54,55,56,57,
-                            48,49,50,51,52,53,54,55,56,57,
-                            48,49,50,51,52,53,54,55,56,57,
-                            48,49,50,51,52,53,54,55,56,57,
-                            48,49,50,51,52,53,54,55,56,57,
-                            48,49,50,51,52,53,54,55,56,57,
+                         //   48,49,50,51,52,53,54,55,56,57,
+                         //   48,49,50,51,52,53,54,55,56,57,
+                         //   48,49,50,51,52,53,54,55,56,57,
+                         //   48,49,50,51,52,53,54,55,56,57,
+                         //   48,49,50,51,52,53,54,55,56,57,
+                         //   48,49,50,51,52,53,54,55,56,57,
                             48,49,50,51,52,53,54,55,56,57,
                             48,49,50,51,52,53,54,55,56,57,32,
                             minbyte1,   minbyte2,   58,
                             secbyte1,   secbyte2,   46,
                             millisec1,  millisec2,  32,
-                            sendcount1, sendcount2, sendcount3,
+                            sendcount1, sendcount2, sendcount3, 32, dummy, dummy,
                             13,10)
-                        proteusGatt.writeCharacteristic(proteusTXCharacteristic)
 
+                        if (bleCharacteristicWrite == 0) {
+                            bleWriteErrorCount = 0
+                            bleSendCount++
+                            if (bleSendCount > 999) bleSendCount = 0
+                            proteusGatt.writeCharacteristic(proteusTXCharacteristic)
+                            bleCharacteristicWrite = bleSendCount + 1
+                        }
+                        else {
+                            bleWriteErrorCount++
+                            Log.i(
+                                "printGattTable",
+                                "\nWriteCharacteristic ${bleSendCount} Err: ${bleWriteErrorCount}")
+                            if (bleWriteErrorCount >= 1)
+                                bleCharacteristicWrite = 0  // forget about error, keep on
+
+                        }
                     }
-                }, 500, 10)
+                }, 500, 25)
 
 
 
@@ -326,14 +369,23 @@ class MainActivity : AppCompatActivity() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             scancount++
 
-           //   if (((result.device.name == "MD3") || (result.device.name == "MoDat")) &&
+            val scantext = findViewById<TextView>(R.id.textView_scan)
+
+            // CALLBACK_TYPE_FIRST_MATCH = 2
+            // CALLBACK_TYPE_MATCH_LOST = 4
+            // CALLBACK_TYPE_ALL_MATCHES = 1
+            if (callbackType == ScanSettings.CALLBACK_TYPE_MATCH_LOST)
+                scantext.text = "Lost"
+            if (callbackType == ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
+                scantext.text = "All"
+        //   if (((result.device.name == "MD3") || (result.device.name == "MoDat")) &&
         //    if ((result.scanRecord.serviceUuids[0]="6e400001-c352-11e5-953d-0002a5d5c51b") &&
 
              if ((lastcurrenttime < (System.currentTimeMillis() - 500)) || !isScanning) {
 
                     with(result.device) {
                         if (isScanning) {
-                            val scantext = findViewById<TextView>(R.id.textView_scan)
+                         //   val scantext = findViewById<TextView>(R.id.textView_scan)
                             Log.i(
                                 TAG,
                                 "Found BLE device! Name: ${name ?: "Unnamed"}, address: $address, rssi: ${result.rssi}"
@@ -360,6 +412,10 @@ class MainActivity : AppCompatActivity() {
                             }
                     }
             }
+        //     else {
+        //         if (lastcurrenttime < (System.currentTimeMillis() - 1000) && isScanning)
+        //             scantext.text = ""
+        //     }
         }
     }
 
@@ -528,12 +584,16 @@ class MainActivity : AppCompatActivity() {
 
 */
 
+    @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         val scantext = findViewById<TextView>(R.id.textView_scan)
         scantext.text = ""  // make no text for the start
+
+        val scantextreceived = findViewById<TextView>(R.id.textView_received)
+        scantextreceived.text = ""  // make no text for the start
 
         val buttonStart = findViewById<Button>(R.id.button_scan)
         buttonStart.text = "Scan"
